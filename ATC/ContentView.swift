@@ -8,14 +8,28 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var showingSettings = false
+    @State private var settings = ATCSettings.shared
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            TrainingView()
+                .navigationTitle("ATC Training")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                .sheet(isPresented: $showingSettings) {
+                    SettingsView()
+                }
         }
-        .padding()
     }
 }
 
