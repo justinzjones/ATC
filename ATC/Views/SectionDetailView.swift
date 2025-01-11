@@ -170,9 +170,20 @@ struct LessonCardView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(lesson.title)
-                    .font(.headline)
-                    .foregroundStyle(Color.primary)
+                HStack {
+                    Text(lesson.title)
+                        .font(.headline)
+                        .foregroundStyle(Color.primary)
+                    
+                    Spacer()
+                    
+                    // Add tower icon for controlled exercises only
+                    if lesson.isControlled {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .foregroundStyle(.green)
+                    }
+                }
+                
                 Text(lesson.objective)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -237,7 +248,8 @@ struct LessonCardView: View {
                             title: "Sample Lesson",
                             objective: "This is a sample lesson objective",
                             type: .radioScenario,
-                            scenarios: []
+                            scenarios: [],
+                            isControlled: true
                         )
                     ]
                 )

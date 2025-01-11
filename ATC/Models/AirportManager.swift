@@ -24,6 +24,7 @@ class AirportManager {
                     name: "Fort Worth Meacham International Airport",
                     shortName: "Meacham",
                     elevation: 710,
+                    isControlled: true,
                     groundFrequencies: GroundFrequencies(
                         ground: .single("121.7"),
                         tower: .single("118.6"),
@@ -31,8 +32,31 @@ class AirportManager {
                     ),
                     runways: [],
                     taxiways: [],
-                    fbos: [],
-                    commonRoutes: []
+                    fbos: [
+                        FBO(
+                            name: "American Aero",
+                            location: "West Ramp",
+                            accessVia: ["Taxiway A"]
+                        ),
+                        FBO(
+                            name: "Texas Jet",
+                            location: "East Ramp",
+                            accessVia: ["Taxiway B"]
+                        )
+                    ],
+                    commonRoutes: [
+                        CommonRoute(
+                            from: "American Aero",
+                            to: "Runway 16",
+                            instructions: "Taxi via A, B to Runway 16",
+                            hotspots: ["Runway 17/35 intersection"]
+                        )
+                    ],
+                    commonLocations: [
+                        "North Ramp",
+                        "South Ramp",
+                        "Main Ramp"
+                    ]
                 )
             ]
             return
@@ -57,6 +81,7 @@ class AirportManager {
                     name: "Fort Worth Meacham International Airport",
                     shortName: "Meacham",
                     elevation: 710,
+                    isControlled: true,
                     groundFrequencies: GroundFrequencies(
                         ground: .single("121.7"),
                         tower: .single("118.6"),
@@ -64,15 +89,39 @@ class AirportManager {
                     ),
                     runways: [],
                     taxiways: [],
-                    fbos: [],
-                    commonRoutes: []
+                    fbos: [
+                        FBO(
+                            name: "American Aero",
+                            location: "West Ramp",
+                            accessVia: ["Taxiway A"]
+                        ),
+                        FBO(
+                            name: "Texas Jet",
+                            location: "East Ramp",
+                            accessVia: ["Taxiway B"]
+                        )
+                    ],
+                    commonRoutes: [
+                        CommonRoute(
+                            from: "American Aero",
+                            to: "Runway 16",
+                            instructions: "Taxi via A, B to Runway 16",
+                            hotspots: ["Runway 17/35 intersection"]
+                        )
+                    ],
+                    commonLocations: [
+                        "North Ramp",
+                        "South Ramp",
+                        "Main Ramp"
+                    ]
                 )
             ]
         }
     }
     
-    func getRandomAirport() -> AirportInfo {
-        airports.randomElement() ?? airports[0]
+    func getRandomAirport(isControlled: Bool = true) -> AirportInfo {
+        let filteredAirports = airports.filter { $0.isControlled == isControlled }
+        return filteredAirports.randomElement() ?? airports[0]  // Fallback to first airport if none found
     }
     
     func getRandomCallsign() -> String {
@@ -99,9 +148,9 @@ class AirportManager {
         ATCPhraseology.phonetics.randomElement()?.letter ?? "Alpha"
     }
     
-    func resetForNewExercise() {
+    func resetForNewExercise(isControlled: Bool = true) {
         currentLocation = nil
-        currentAirport = getRandomAirport()
+        currentAirport = getRandomAirport(isControlled: isControlled)
         currentCallsign = ATCSettings.shared.callSign ?? getRandomCallsign()
         currentAtisCode = getRandomAtisCode()
     }
@@ -136,16 +185,24 @@ class AirportManager {
     }
     
     func processText(_ text: String, for airport: AirportInfo?, isATCResponse: Bool = false) -> String {
-        let selectedAirport = currentAirport ?? getRandomAirport()
-        currentAirport = selectedAirport  // Store the selected airport
+        let selectedAirport = currentAirport ?? getRandomAirport(isControlled: true)
+        currentAirport = selectedAirport
         
         var processedText = text
         
         // Handle airport_location consistently
         if processedText.contains("{{airport_location}}") || processedText.contains("{{airport location}}") {
             if currentLocation == nil {
+                print("🔍 Current Airport: \(selectedAirport.icao)")
+                print("🎯 Is Controlled: \(selectedAirport.isControlled)")
+                print("📍 FBOs: \(selectedAirport.fbos)")
+                
                 if let randomFBO = selectedAirport.fbos.randomElement() {
                     currentLocation = randomFBO.location
+                    print("✅ Setting FBO location: \(randomFBO.location)")
+                } else if let randomLocation = selectedAirport.commonLocations.randomElement() {
+                    currentLocation = randomLocation
+                    print("✅ Setting common location: \(randomLocation)")
                 }
             }
             
@@ -158,6 +215,9 @@ class AirportManager {
                     of: "{{airport location}}",
                     with: location
                 )
+                print("🔄 Replaced location placeholder with: \(location)")  // Debug print
+            } else {
+                print("⚠️ No location available to replace placeholder")  // Debug print
             }
         }
         
