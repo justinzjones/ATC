@@ -3,11 +3,15 @@ import SwiftUI
 struct CommunicationExerciseView: View {
     @Environment(\.dismiss) private var dismiss
     let lessonType: CommunicationExerciseType
+    let lessonTitle: String
+    let objective: String
     @StateObject private var viewModel: CommunicationExerciseViewModel
     @Namespace private var animation  // For matched geometry transitions
     
-    init(lessonType: CommunicationExerciseType) {
+    init(lessonType: CommunicationExerciseType, lessonTitle: String, objective: String) {
         self.lessonType = lessonType
+        self.lessonTitle = lessonTitle
+        self.objective = objective
         self._viewModel = StateObject(wrappedValue: CommunicationExerciseViewModel(lessonType: lessonType))
     }
     
@@ -16,8 +20,10 @@ struct CommunicationExerciseView: View {
             VStack(spacing: 12) {
                 // Exercise Title and Progress
                 HStack {
-                    Text(getLessonTitle())
-                        .font(.headline)
+                    Text(objective)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
                     Spacer()
                     StepProgressView(
                         currentStep: viewModel.currentStep,
@@ -30,7 +36,7 @@ struct CommunicationExerciseView: View {
                     // Situation Card
                     SituationCard(text: viewModel.situationText)
                         .transition(.move(edge: .leading))
-                        .id("situation-\(viewModel.currentStep)")  // Force view update on step change
+                        .id("situation-\(viewModel.currentStep)")
                     
                     // Request Section
                     RequestSection(
@@ -45,27 +51,31 @@ struct CommunicationExerciseView: View {
                     .transition(.move(edge: .trailing))
                     .id("request-\(viewModel.currentStep)")
                     
-                    // ATC Response Section (when shown)
-                    if viewModel.showControllerResponse {
-                        ATCResponseSection(
-                            response: viewModel.controllerResponse ?? "",
-                            onSpeak: viewModel.speakATCResponse
-                        )
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)).animation(.easeInOut(duration: 0.4)))
-                        
-                        // Readback Section
-                        ReadbackSection(
-                            elements: $viewModel.readbackElements,
-                            selectedElements: $viewModel.selectedReadbackElements,
-                            isCorrect: viewModel.isReadbackCorrect,
-                            onSubmit: viewModel.validateReadback,
-                            errorMessage: viewModel.readbackFeedback
-                        )
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                    // Only show ATC Response and Readback if they exist in the communication
+                    if viewModel.hasATCResponse {
+                        if viewModel.showControllerResponse {
+                            ATCResponseSection(
+                                response: viewModel.controllerResponse ?? "",
+                                onSpeak: viewModel.speakATCResponse
+                            )
+                            
+                            if viewModel.hasReadback {
+                                ReadbackSection(
+                                    availableElements: $viewModel.availableReadbackElements,
+                                    selectedElements: $viewModel.selectedReadbackElements,
+                                    isCorrect: viewModel.isReadbackCorrect,
+                                    onSubmit: viewModel.validateReadback,
+                                    errorMessage: viewModel.readbackFeedback
+                                )
+                            }
+                        }
                     }
                 } else {
-                    CompletionView(onContinue: { dismiss() })
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)).animation(.easeInOut(duration: 0.5)))
+                    CompletionView(
+                        summaryItems: viewModel.summaryItems,
+                        onContinue: { dismiss() }
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)).animation(.easeInOut(duration: 0.5)))
                 }
             }
             .padding(.vertical)
@@ -123,6 +133,6 @@ struct CommunicationPill: View {
 
 #Preview {
     NavigationStack {
-        CommunicationExerciseView(lessonType: .basic)
+        CommunicationExerciseView(lessonType: .basic, lessonTitle: "Basic Taxi Request", objective: "Learn how to handle taxi requests")
     }
 } 
