@@ -18,11 +18,13 @@ struct AirportInfo: Codable {
     let name: String
     let shortName: String
     let elevation: Int
+    let isControlled: Bool
     let groundFrequencies: GroundFrequencies
     let runways: [Runway]
     let taxiways: [Taxiway]
     let fbos: [FBO]
-    let commonRoutes: [CommonRoute]
+    let commonRoutes: [CommonRoute]?
+    let commonLocations: [String]?
     
     enum CodingKeys: String, CodingKey {
         case icao = "ICAO"
@@ -30,11 +32,13 @@ struct AirportInfo: Codable {
         case name = "Name"
         case shortName = "ShortName"
         case elevation = "Elevation"
+        case isControlled = "IsControlled"
         case groundFrequencies = "Ground_Frequencies"
         case runways = "Runways"
         case taxiways = "Taxiways"
         case fbos = "FBOs"
         case commonRoutes = "CommonRoutes"
+        case commonLocations = "CommonLocations"
     }
 }
 

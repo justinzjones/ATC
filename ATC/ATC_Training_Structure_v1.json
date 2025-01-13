@@ -141,7 +141,7 @@
             "Lesson ID": "VFR-TaxiOut-1",
             "Step#": 1,
             "Type": "Request",
-            "Situation Text": "You are parked at {{airport location}}. ",
+            "Situation Text": "You are at {{airport_name}} parked at {{airport location}}. ",
             "Pilot request": "{{airport_name}} \"traffic\", {{call_sign}}, {{airport_location}}, \"taxi to\" {{runway number}}, {{airport_name}}",
             "ATC Response": null,
             "Pilot readback": null

@@ -275,8 +275,8 @@
         {
             "ICAO": "KLUD",
             "IATA": "LUD",
-            "Name": "Ludington Airport",
-            "ShortName": "Ludington",
+            "Name": "Decatur Municipal Airport",
+            "ShortName": "Decatur",
             "Elevation": 640,
             "IsControlled": false,
             "Ground_Frequencies": {

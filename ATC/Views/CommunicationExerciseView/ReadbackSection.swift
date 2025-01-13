@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ReadbackSection: View {
-    @Binding var availableElements: [CommunicationElement]
+    @Binding var elements: [CommunicationElement]
     @Binding var selectedElements: [CommunicationElement]
     let isCorrect: Bool
     let onSubmit: () -> Void
@@ -35,7 +35,7 @@ struct ReadbackSection: View {
                                 CommunicationPill(element: element)
                                     .onTapGesture {
                                         withAnimation {
-                                            moveElement(element, from: &selectedElements, to: &availableElements)
+                                            moveElement(element, from: &selectedElements, to: &elements)
                                         }
                                     }
                             }
@@ -51,13 +51,13 @@ struct ReadbackSection: View {
                     }
                     
                     // Available readback elements
-                    if !availableElements.isEmpty {
+                    if !elements.isEmpty {
                         FlowLayout(horizontalSpacing: 8, verticalSpacing: 8) {
-                            ForEach(availableElements) { element in
+                            ForEach(elements) { element in
                                 CommunicationPill(element: element)
                                     .onTapGesture {
                                         withAnimation {
-                                            moveElement(element, from: &availableElements, to: &selectedElements)
+                                            moveElement(element, from: &elements, to: &selectedElements)
                                         }
                                     }
                             }

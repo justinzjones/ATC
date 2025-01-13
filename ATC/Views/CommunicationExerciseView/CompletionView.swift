@@ -1,15 +1,18 @@
 import SwiftUI
 
 struct CompletionView: View {
+    let summaryItems: [ExerciseSummaryItem]
     let onContinue: () -> Void
     
     var body: some View {
         VStack(spacing: 12) {
             VStack(spacing: 8) {
-                ExerciseProgressCard(text: "Situation Review", hasAudio: false)
-                ExerciseProgressCard(text: "ATC Request", hasAudio: false)
-                ExerciseProgressCard(text: "ATC Response", hasAudio: true)
-                ExerciseProgressCard(text: "Readback Complete", hasAudio: false)
+                ForEach(summaryItems) { item in
+                    ExerciseProgressCard(
+                        text: item.title,
+                        hasAudio: item.title.contains("Response")
+                    )
+                }
             }
         }
         .padding()

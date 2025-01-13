@@ -1,40 +1,40 @@
 import Foundation
 import SwiftUI
 
-struct CommunicationElement: Identifiable, Equatable {
+struct CommunicationElement: Identifiable {
     let id = UUID()
-    let text: String
-    let type: ElementType
+    let rawText: String  // Original text with placeholders
+    var processedText: String  // Text after processing placeholders
+    let type: CommunicationElementType
     var isSelected: Bool = false
     
-    var processedText: String {
-        text.trimmingCharacters(in: .whitespaces)
+    init(text: String, type: CommunicationElementType) {
+        self.rawText = text
+        self.processedText = AirportManager.shared.processText(text, for: nil, isATCResponse: false)  // Ensure no quotes in pills
+        self.type = type
     }
     
-    enum ElementType {
-        case callsign
+    enum CommunicationElementType {
+        case traffic
         case ground
         case taxi
-        case traffic
+        case callsign
         case location
         case airport
-        case runway
         
         var color: Color {
             switch self {
-            case .callsign:
-                return .blue
-            case .ground:
-                return .purple
-            case .taxi:
-                return .green
             case .traffic:
                 return .orange
+            case .ground:
+                return .blue
+            case .taxi:
+                return .green
+            case .callsign:
+                return .purple
             case .location:
                 return .red
             case .airport:
-                return .gray
-            case .runway:
                 return .indigo
             }
         }

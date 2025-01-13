@@ -15,12 +15,14 @@ struct TrainingView: View {
                 
                 ScrollView {
                     VStack(spacing: 12) {
-                        Text(dataLoader.getIntroduction()?.description ?? "Welcome to ATC Training. Through a series of interactive exercises you'll learn how to communicate with Air Traffic Control effectively.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 16)
+                        if let intro = dataLoader.getIntroduction() {
+                            Text(intro.description)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 16)
+                        }
                         
                         ForEach(viewModel.sections) { section in
                             NavigationLink(destination: SectionDetailView(section: section)) {
@@ -53,17 +55,14 @@ struct SectionCardView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(section.title)
                         .font(.headline)
-                        .foregroundStyle(Color.primary)
                     Text(section.description)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
+        .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
@@ -77,7 +76,7 @@ struct SectionCardView: View {
         case "VFR Training":
             return "graduationcap.fill"
         case "IFR Training":
-            return "airplane"
+            return "list.bullet"
         default:
             return "list.bullet"
         }

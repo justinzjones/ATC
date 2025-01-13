@@ -51,11 +51,11 @@ struct SubsectionCardView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(subsection.title)
                             .font(.headline)
-                            .foregroundStyle(Color.primary)
                         Text(subsection.description)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -145,7 +145,9 @@ struct SubsectionDetailView: View {
                     ForEach(subsection.lessons) { lesson in
                         NavigationLink(destination: LessonDetailView(lesson: lesson)) {
                             LessonCardView(lesson: lesson)
+                                .foregroundStyle(.primary)
                         }
+                        .buttonStyle(PlainButtonStyle())
                         .padding(.horizontal)
                     }
                 }
@@ -173,11 +175,9 @@ struct LessonCardView: View {
                 HStack {
                     Text(lesson.title)
                         .font(.headline)
-                        .foregroundStyle(Color.primary)
                     
                     Spacer()
                     
-                    // Add tower icon for controlled exercises only
                     if lesson.isControlled {
                         Image(systemName: "antenna.radiowaves.left.and.right")
                             .foregroundStyle(.green)
@@ -188,6 +188,7 @@ struct LessonCardView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding()
@@ -234,6 +235,19 @@ struct LessonCardView: View {
     }
 }
 
+struct LessonDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            LessonDetailView(lesson: ATCLesson(
+                title: "Sample Lesson",
+                objective: "This is a sample lesson objective",
+                isControlled: true,
+                lessonID: "VFR-TaxiOut-1"
+            ))
+        }
+    }
+}
+
 #Preview {
     NavigationStack {
         SectionDetailView(section: ATCSection(
@@ -247,9 +261,8 @@ struct LessonCardView: View {
                         ATCLesson(
                             title: "Sample Lesson",
                             objective: "This is a sample lesson objective",
-                            type: .radioScenario,
-                            scenarios: [],
-                            isControlled: true
+                            isControlled: true,
+                            lessonID: "VFR-TaxiOut-1"
                         )
                     ]
                 )

@@ -7,6 +7,7 @@ struct CommunicationScenario: Codable, Identifiable {
     let pilotRequest: String?
     let atcResponse: String?
     let pilotReadback: String?
+    let controlled: String
     
     enum CodingKeys: String, CodingKey {
         case lessonID = "Lesson ID"
@@ -16,6 +17,7 @@ struct CommunicationScenario: Codable, Identifiable {
         case pilotRequest = "Pilot request"
         case atcResponse = "ATC Response"
         case pilotReadback = "Pilot readback"
+        case controlled = "Controlled"
     }
     
     init(from decoder: Decoder) throws {
@@ -27,6 +29,7 @@ struct CommunicationScenario: Codable, Identifiable {
         pilotRequest = try container.decodeIfPresent(String.self, forKey: .pilotRequest)
         atcResponse = try container.decodeIfPresent(String.self, forKey: .atcResponse)
         pilotReadback = try container.decodeIfPresent(String.self, forKey: .pilotReadback)
+        controlled = try container.decode(String.self, forKey: .controlled)
         
         // Create a unique ID combining lesson ID and step number
         id = "\(lessonID)-\(stepNumber)"

@@ -23,13 +23,12 @@ class CommunicationExerciseViewModel: ObservableObject {
     @Published var hasReadback: Bool = false
     @Published var correctOrder: [CommunicationElement] = []
     @Published var summaryItems: [ExerciseSummaryItem] = []
-    @Published var availableReadbackElements: [CommunicationElement] = []
     
-    let lessonType: CommunicationExerciseType
+    let isControlled: Bool
     private let synthesizer: SpeechSynthesizer
     
-    init(lessonType: CommunicationExerciseType) {
-        self.lessonType = lessonType
+    init(isControlled: Bool) {
+        self.isControlled = isControlled
         self.synthesizer = SpeechSynthesizer()
         if let voice = AVSpeechSynthesisVoice(identifier: "com.apple.ttsbundle.Samantha-premium") {
             self.synthesizer.updateVoice(voice.identifier)
@@ -41,53 +40,60 @@ class CommunicationExerciseViewModel: ObservableObject {
         
         // Process text with AirportManager
         let processedText = AirportManager.shared.processText(text, for: nil, isATCResponse: false)
-        print("Creating elements from text:", text)
-        print("Processed into:", processedText)
         
         // Split into elements and create with appropriate type
         return processedText.components(separatedBy: ", ")
             .map { text in
-                let trimmedText = text.trimmingCharacters(in: .whitespaces)
-                if trimmedText.contains("traffic") {
-                    return CommunicationElement(text: trimmedText, type: .traffic)
-                } else if trimmedText.contains("Ground") {
-                    return CommunicationElement(text: trimmedText, type: .ground)
-                } else if trimmedText.contains("taxi") {
-                    return CommunicationElement(text: trimmedText, type: .taxi)
-                } else if trimmedText.contains("N") && trimmedText.count >= 5 {  // N-number
-                    return CommunicationElement(text: trimmedText, type: .callsign)
-                } else if trimmedText.contains("Runway") {  // Add Runway handling
-                    return CommunicationElement(text: trimmedText, type: .runway)
-                } else if trimmedText.contains("Ramp") || trimmedText.contains("Terminal") {
-                    return CommunicationElement(text: trimmedText, type: .location)
-                } else {
-                    return CommunicationElement(text: trimmedText, type: .airport)
+                let lowercased = text.lowercased()
+                if lowercased.contains("traffic") {
+                    return CommunicationElement(text: text, type: .traffic)
+                } else if lowercased.contains("ground") {
+                    return CommunicationElement(text: text, type: .ground)
+                } else if lowercased.contains("taxi") {
+                    return CommunicationElement(text: text, type: .taxi)
+                } else if text.contains("N") && text.count >= 5 && text.contains(where: { $0.isNumber }) {
+                    return CommunicationElement(text: text, type: .callsign)
+                } else if lowercased.contains("ramp") || lowercased.contains("terminal") {
+                    return CommunicationElement(text: text, type: .location)
+                } else {  // Airport name
+                    return CommunicationElement(text: text, type: .airport)
                 }
             }
     }
     
     private func findCommunications() -> [ExerciseCommunication] {
-        // Load communications from JSON
         guard let communications = DataLoader().loadCommunications() else {
+            print("Failed to load communications")
             return []
         }
         
-        // Find all communications for this lesson
-        return communications.filter { communication in
-            switch lessonType {
-            case .uncontrolled:
+        // Find communications based on isControlled status
+        let filteredComms = communications.filter { communication in
+            if isControlled {
+                return communication.lessonID == "VFR-TaxiOut-2" || communication.lessonID == "VFR-TaxiOut-3"
+            } else {
                 return communication.lessonID == "VFR-TaxiOut-1"
-            case .basic:
-                return communication.lessonID == "VFR-TaxiOut-2"
-            case .complex:
-                return communication.lessonID == "VFR-TaxiOut-3"
             }
         }.sorted { $0.stepNumber < $1.stepNumber }
+        
+        // Update totalSteps based on the actual number of steps in this lesson
+        if let maxStep = filteredComms.map({ $0.stepNumber }).max() {
+            totalSteps = maxStep
+        }
+        
+        // Set currentStep based on the current communication's step number
+        if let firstComm = filteredComms.first {
+            currentStep = firstComm.stepNumber
+        }
+        
+        print("Found \(filteredComms.count) communications for isControlled: \(isControlled)")
+        print("Communication IDs: \(filteredComms.map { $0.lessonID })")
+        return filteredComms
     }
     
     func loadExercise() {
         let communications = findCommunications()
-        totalSteps = communications.count  // Set total steps based on actual steps in lesson
+        totalSteps = max(1, communications.count)  // Ensure totalSteps is at least 1
         
         if let firstStep = communications.first {
             loadStep(firstStep)
@@ -104,20 +110,14 @@ class CommunicationExerciseViewModel: ObservableObject {
     }
     
     private func loadStep(_ communication: ExerciseCommunication) {
-        print("Loading step...")
-        print("Pilot Request:", communication.pilotRequest ?? "nil")
-        print("ATC Response:", communication.atcResponse ?? "nil")
-        print("Pilot Readback:", communication.pilotReadback ?? "nil")
+        // Update current step to match the communication's step number
+        currentStep = communication.stepNumber
         
         // Set flags based on communication content
         hasATCResponse = communication.atcResponse != nil
         hasReadback = communication.pilotReadback != nil
         
-        print("Has ATC Response:", hasATCResponse)
-        print("Has Readback:", hasReadback)
-        
         // Reset AirportManager with appropriate controlled status
-        let isControlled = lessonType != .uncontrolled
         AirportManager.shared.resetForNewExercise(isControlled: isControlled)
         
         // Load and process situation text
@@ -127,33 +127,17 @@ class CommunicationExerciseViewModel: ObservableObject {
             isATCResponse: false
         )
         
-        // Store the correct order and load initial elements for request
+        // Store the correct order and load initial elements
         if let pilotRequest = communication.pilotRequest {
             correctOrder = createElements(from: pilotRequest)
             initialElements = correctOrder.shuffled()
-            print("Created request elements:", correctOrder.map { $0.processedText })
         }
         
         // Only load ATC response and readback if they exist
-        if let atcResponse = communication.atcResponse {
-            controllerResponse = AirportManager.shared.processText(
-                atcResponse,
-                for: nil,
-                isATCResponse: true
-            )
-            print("Processed ATC response:", controllerResponse ?? "nil")
-            
-            if let pilotReadback = communication.pilotReadback {
-                let processedReadback = AirportManager.shared.processText(
-                    pilotReadback,
-                    for: nil,
-                    isATCResponse: false
-                )
-                print("Processed readback text:", processedReadback)
-                readbackElements = createElements(from: processedReadback)
-                availableReadbackElements = readbackElements.shuffled()
-                selectedReadbackElements = []
-                print("Created readback elements:", readbackElements.map { $0.processedText })
+        if hasATCResponse {
+            controllerResponse = communication.atcResponse
+            if hasReadback {
+                readbackElements = createElements(from: communication.pilotReadback)
             }
         }
         
@@ -244,23 +228,7 @@ class CommunicationExerciseViewModel: ObservableObject {
     
     func validateReadback() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            // Debug prints to see what we're comparing
-            print("Selected Readback:", selectedReadbackElements.map { $0.processedText })
-            print("Expected Readback:", readbackElements.map { $0.processedText })
-            
-            // Process both arrays through AirportManager to ensure consistent formatting
-            let selectedProcessed = selectedReadbackElements.map { element in
-                AirportManager.shared.processText(element.processedText, for: nil, isATCResponse: false)
-            }
-            
-            let expectedProcessed = readbackElements.map { element in
-                AirportManager.shared.processText(element.processedText, for: nil, isATCResponse: false)
-            }
-            
-            print("Processed Selected:", selectedProcessed)
-            print("Processed Expected:", expectedProcessed)
-            
-            if selectedProcessed == expectedProcessed {
+            if selectedReadbackElements.map({ $0.processedText }) == readbackElements.map({ $0.processedText }) {
                 isReadbackCorrect = true
                 isControllerResponseExpanded = false
                 isReadbackExpanded = false

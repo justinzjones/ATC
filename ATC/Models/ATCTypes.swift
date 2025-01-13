@@ -1,32 +1,24 @@
 import Foundation
 
-// Represents a single lesson within a subsection
+// MARK: - View Models
+struct ATCSection: Identifiable {
+    let title: String
+    let description: String
+    var subsections: [ATCSubsection]
+    var id: String { title }
+}
+
+struct ATCSubsection: Identifiable {
+    let title: String
+    let description: String
+    var lessons: [ATCLesson]
+    var id: String { title }
+}
+
 struct ATCLesson: Identifiable {
-    let id = UUID()
     let title: String
     let objective: String
-    let type: LessonType
-    let scenarios: [ATCScenario]
-    
-    enum LessonType {
-        case radioScenario
-        case taxiRequest
-    }
-}
-
-// Represents a subsection of training (e.g., Taxi out, Takeoff, etc.)
-struct ATCSubsection: Identifiable {
-    let id = UUID()
-    let title: String
-    let description: String
-    let lessons: [ATCLesson]
-    var isCompleted: Bool = false
-}
-
-// Represents main sections (VFR or IFR)
-struct ATCSection: Identifiable {
-    let id = UUID()
-    let title: String
-    let description: String
-    let subsections: [ATCSubsection]
+    let isControlled: Bool
+    let lessonID: String
+    var id: String { lessonID }
 } 

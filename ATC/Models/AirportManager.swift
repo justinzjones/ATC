@@ -11,6 +11,15 @@ class AirportManager {
     private var currentRunway: String?
     private var currentTaxiway: String?
     
+    // Global list of common locations that can be used for any airport
+    private static let globalCommonLocations = [
+        "North Ramp",
+        "South Ramp",
+        "Main Ramp",
+        "Terminal Ramp",
+        "Transient Parking"
+    ]
+    
     init() {
         print("🛫 Initializing AirportManager...")
         
@@ -197,10 +206,13 @@ class AirportManager {
                 print("🎯 Is Controlled: \(selectedAirport.isControlled)")
                 print("📍 FBOs: \(selectedAirport.fbos)")
                 
+                // First try to get a location from FBOs
                 if let randomFBO = selectedAirport.fbos.randomElement() {
                     currentLocation = randomFBO.location
                     print("✅ Setting FBO location: \(randomFBO.location)")
-                } else if let randomLocation = selectedAirport.commonLocations.randomElement() {
+                } 
+                // If no FBOs, use global common locations
+                else if let randomLocation = AirportManager.globalCommonLocations.randomElement() {
                     currentLocation = randomLocation
                     print("✅ Setting common location: \(randomLocation)")
                 }
@@ -215,9 +227,9 @@ class AirportManager {
                     of: "{{airport location}}",
                     with: location
                 )
-                print("🔄 Replaced location placeholder with: \(location)")  // Debug print
+                print("🔄 Replaced location placeholder with: \(location)")
             } else {
-                print("⚠️ No location available to replace placeholder")  // Debug print
+                print("⚠️ No location available to replace placeholder")
             }
         }
         
