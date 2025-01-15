@@ -26,6 +26,7 @@ class CommunicationExerciseViewModel: ObservableObject {
     
     let isControlled: Bool
     private let synthesizer: SpeechSynthesizer
+    private var correctReadbackOrder: [CommunicationElement] = []
     
     init(isControlled: Bool) {
         self.isControlled = isControlled
@@ -67,7 +68,7 @@ class CommunicationExerciseViewModel: ObservableObject {
             return []
         }
         
-        // Find communications based on isControlled status
+        // Find communications for this lesson based on lessonID
         let filteredComms = communications.filter { communication in
             if isControlled {
                 return communication.lessonID == "VFR-TaxiOut-2" || communication.lessonID == "VFR-TaxiOut-3"
@@ -76,24 +77,23 @@ class CommunicationExerciseViewModel: ObservableObject {
             }
         }.sorted { $0.stepNumber < $1.stepNumber }
         
-        // Update totalSteps based on the actual number of steps in this lesson
-        if let maxStep = filteredComms.map({ $0.stepNumber }).max() {
-            totalSteps = maxStep
-        }
+        // Set totalSteps based on the actual number of steps in this lesson
+        totalSteps = filteredComms.count
         
-        // Set currentStep based on the current communication's step number
+        // Set currentStep based on the first communication's step number
         if let firstComm = filteredComms.first {
             currentStep = firstComm.stepNumber
         }
         
-        print("Found \(filteredComms.count) communications for isControlled: \(isControlled)")
-        print("Communication IDs: \(filteredComms.map { $0.lessonID })")
+        print("Found \(filteredComms.count) steps for lesson (isControlled: \(isControlled))")
         return filteredComms
     }
     
     func loadExercise() {
         let communications = findCommunications()
-        totalSteps = max(1, communications.count)  // Ensure totalSteps is at least 1
+        
+        // Ensure totalSteps reflects the actual number of communications
+        totalSteps = communications.count
         
         if let firstStep = communications.first {
             loadStep(firstStep)
@@ -127,17 +127,39 @@ class CommunicationExerciseViewModel: ObservableObject {
             isATCResponse: false
         )
         
-        // Store the correct order and load initial elements
+        // Store the correct order and load initial elements for the request
         if let pilotRequest = communication.pilotRequest {
             correctOrder = createElements(from: pilotRequest)
             initialElements = correctOrder.shuffled()
         }
         
-        // Only load ATC response and readback if they exist
+        // Process ATC response with dynamic elements
         if hasATCResponse {
-            controllerResponse = communication.atcResponse
+            controllerResponse = AirportManager.shared.processText(
+                communication.atcResponse ?? "",
+                for: nil,
+                isATCResponse: true
+            )
+            
             if hasReadback {
-                readbackElements = createElements(from: communication.pilotReadback)
+                let processedReadback = AirportManager.shared.processText(
+                    communication.pilotReadback ?? "",
+                    for: nil,
+                    isATCResponse: false
+                )
+                
+                // Create elements and store correct order
+                correctReadbackOrder = processedReadback.components(separatedBy: ", ")
+                    .map { text in
+                        CommunicationElement(text: text, type: determineElementType(text))
+                    }
+                
+                // Create shuffled copy for presentation
+                readbackElements = correctReadbackOrder.shuffled()
+                
+                print("Created readback elements in order: \(correctReadbackOrder.map { $0.processedText })")
+                print("Shuffled elements: \(readbackElements.map { $0.processedText })")
+                selectedReadbackElements = []
             }
         }
         
@@ -228,11 +250,32 @@ class CommunicationExerciseViewModel: ObservableObject {
     
     func validateReadback() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            if selectedReadbackElements.map({ $0.processedText }) == readbackElements.map({ $0.processedText }) {
+            print("Validating readback...")
+            print("Selected elements: \(selectedReadbackElements.map { $0.processedText })")
+            print("Correct order: \(correctReadbackOrder.map { $0.processedText })")
+            
+            // Compare against the correct order, not the shuffled elements
+            let isCorrect = selectedReadbackElements.count == correctReadbackOrder.count &&
+                zip(selectedReadbackElements, correctReadbackOrder).allSatisfy { selected, correct in
+                    let matches = selected.processedText == correct.processedText
+                    print("Comparing: '\(selected.processedText)' with '\(correct.processedText)' -> \(matches)")
+                    return matches
+                }
+            
+            if isCorrect {
+                print("✅ Readback correct")
                 isReadbackCorrect = true
                 isControllerResponseExpanded = false
                 isReadbackExpanded = false
+                
+                if let index = summaryItems.firstIndex(where: { $0.title == "Pilot Readback" }) {
+                    summaryItems[index] = ExerciseSummaryItem(
+                        title: "Pilot Readback",
+                        isCompleted: true
+                    )
+                }
             } else {
+                print("❌ Readback incorrect")
                 readbackFeedback = "Incorrect readback. Please try again."
             }
         }
@@ -241,6 +284,19 @@ class CommunicationExerciseViewModel: ObservableObject {
     func speakATCResponse() {
         if let response = controllerResponse {
             synthesizer.speak(response)
+        }
+    }
+    
+    private func determineElementType(_ text: String) -> CommunicationElement.CommunicationElementType {
+        let lowercased = text.lowercased()
+        if lowercased.contains("runway") {
+            return .runway
+        } else if text.contains("N") && text.count >= 5 && text.contains(where: { $0.isNumber }) {
+            return .callsign
+        } else if lowercased.contains("taxi") {
+            return .taxi
+        } else {
+            return .readback
         }
     }
 } 
