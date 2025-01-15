@@ -21,6 +21,8 @@ struct CommunicationElement: Identifiable {
         case callsign
         case location
         case airport
+        case runway
+        case readback
         
         var color: Color {
             switch self {
@@ -36,6 +38,10 @@ struct CommunicationElement: Identifiable {
                 return .red
             case .airport:
                 return .indigo
+            case .runway:
+                return .mint
+            case .readback:
+                return .teal
             }
         }
     }

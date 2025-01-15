@@ -14,7 +14,8 @@ struct LessonDetailView: View {
             CommunicationExerciseView(
                 lessonTitle: lesson.title,
                 objective: lesson.objective,
-                isControlled: lesson.isControlled
+                isControlled: lesson.isControlled,
+                lessonID: lesson.lessonID
             )
         }
         .navigationTitle(lesson.title)
@@ -25,10 +26,10 @@ struct LessonDetailView: View {
 #Preview {
     NavigationStack {
         LessonDetailView(lesson: ATCLesson(
-            title: "Sample Lesson",
-            objective: "This is a sample lesson objective",
+            title: "Basic Taxi Request",
+            objective: "Practice basic taxi requests",
             isControlled: true,
-            lessonID: "VFR-TaxiOut-1"
+            lessonID: "VFR-TaxiOut-2"
         ))
     }
 } 

@@ -5,14 +5,19 @@ struct CommunicationExerciseView: View {
     let lessonTitle: String
     let objective: String
     let isControlled: Bool
+    let lessonID: String
     @StateObject private var viewModel: CommunicationExerciseViewModel
     @Namespace private var animation  // For matched geometry transitions
     
-    init(lessonTitle: String, objective: String, isControlled: Bool) {
+    init(lessonTitle: String, objective: String, isControlled: Bool, lessonID: String) {
         self.lessonTitle = lessonTitle
         self.objective = objective
         self.isControlled = isControlled
-        self._viewModel = StateObject(wrappedValue: CommunicationExerciseViewModel(isControlled: isControlled))
+        self.lessonID = lessonID
+        self._viewModel = StateObject(wrappedValue: CommunicationExerciseViewModel(
+            isControlled: isControlled,
+            lessonID: lessonID
+        ))
     }
     
     var body: some View {
@@ -38,36 +43,36 @@ struct CommunicationExerciseView: View {
                         .transition(.move(edge: .leading))
                         .id("situation-\(viewModel.currentStep)")
                     
-                    // Request Section
-                    RequestSection(
-                        initialElements: $viewModel.initialElements,
-                        selectedElements: $viewModel.selectedElements,
-                        showControllerResponse: viewModel.showControllerResponse,
-                        showFeedback: viewModel.showRequestFeedback,
-                        feedbackMessage: viewModel.requestFeedback,
-                        onSubmit: viewModel.validateRequest,
-                        isExpanded: $viewModel.isRequestExpanded
-                    )
-                    .transition(.move(edge: .trailing))
-                    .id("request-\(viewModel.currentStep)")
+                    // Only show Request Section if there's a pilot request
+                    if viewModel.initialElements.count > 0 {
+                        RequestSection(
+                            initialElements: $viewModel.initialElements,
+                            selectedElements: $viewModel.selectedElements,
+                            showControllerResponse: viewModel.showControllerResponse,
+                            showFeedback: viewModel.showRequestFeedback,
+                            feedbackMessage: viewModel.requestFeedback,
+                            onSubmit: viewModel.validateRequest,
+                            isExpanded: $viewModel.isRequestExpanded
+                        )
+                        .transition(.move(edge: .trailing))
+                        .id("request-\(viewModel.currentStep)")
+                    }
                     
-                    // Only show ATC Response and Readback if they exist in the communication
-                    if viewModel.hasATCResponse {
-                        if viewModel.showControllerResponse {
-                            ATCResponseSection(
-                                response: viewModel.controllerResponse ?? "",
-                                onSpeak: viewModel.speakATCResponse
+                    // Show ATC Response if available
+                    if viewModel.hasATCResponse && (viewModel.showControllerResponse || viewModel.initialElements.isEmpty) {
+                        ATCResponseSection(
+                            response: viewModel.controllerResponse ?? "",
+                            onSpeak: viewModel.speakATCResponse
+                        )
+                        
+                        if viewModel.hasReadback {
+                            ReadbackSection(
+                                elements: $viewModel.readbackElements,
+                                selectedElements: $viewModel.selectedReadbackElements,
+                                isCorrect: viewModel.isReadbackCorrect,
+                                onSubmit: viewModel.validateReadback,
+                                errorMessage: viewModel.readbackFeedback
                             )
-                            
-                            if viewModel.hasReadback {
-                                ReadbackSection(
-                                    elements: $viewModel.readbackElements,
-                                    selectedElements: $viewModel.selectedReadbackElements,
-                                    isCorrect: viewModel.isReadbackCorrect,
-                                    onSubmit: viewModel.validateReadback,
-                                    errorMessage: viewModel.readbackFeedback
-                                )
-                            }
                         }
                     }
                 } else {
@@ -92,6 +97,6 @@ struct CommunicationExerciseView: View {
 
 #Preview {
     NavigationStack {
-        CommunicationExerciseView(lessonTitle: "Basic Taxi Request", objective: "Learn how to handle taxi requests", isControlled: true)
+        CommunicationExerciseView(lessonTitle: "Basic Taxi Request", objective: "Learn how to handle taxi requests", isControlled: true, lessonID: "VFR-TaxiOut-2")
     }
 } 

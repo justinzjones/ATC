@@ -25,11 +25,13 @@ class CommunicationExerciseViewModel: ObservableObject {
     @Published var summaryItems: [ExerciseSummaryItem] = []
     
     let isControlled: Bool
+    let lessonID: String
     private let synthesizer: SpeechSynthesizer
     private var correctReadbackOrder: [CommunicationElement] = []
     
-    init(isControlled: Bool) {
+    init(isControlled: Bool, lessonID: String? = nil) {
         self.isControlled = isControlled
+        self.lessonID = lessonID ?? (isControlled ? "VFR-TaxiOut-2" : "VFR-TaxiOut-1")
         self.synthesizer = SpeechSynthesizer()
         if let voice = AVSpeechSynthesisVoice(identifier: "com.apple.ttsbundle.Samantha-premium") {
             self.synthesizer.updateVoice(voice.identifier)
@@ -68,32 +70,37 @@ class CommunicationExerciseViewModel: ObservableObject {
             return []
         }
         
-        // Find communications for this lesson based on lessonID
-        let filteredComms = communications.filter { communication in
-            if isControlled {
-                return communication.lessonID == "VFR-TaxiOut-2" || communication.lessonID == "VFR-TaxiOut-3"
-            } else {
-                return communication.lessonID == "VFR-TaxiOut-1"
-            }
+        print("Loading lesson: \(lessonID)")
+        
+        // Filter communications for this specific lesson only
+        let filteredComms = communications.filter { 
+            $0.lessonID == lessonID 
         }.sorted { $0.stepNumber < $1.stepNumber }
         
-        // Set totalSteps based on the actual number of steps in this lesson
-        totalSteps = filteredComms.count
-        
-        // Set currentStep based on the first communication's step number
-        if let firstComm = filteredComms.first {
-            currentStep = firstComm.stepNumber
+        // Debug print the filtered communications
+        filteredComms.forEach { comm in
+            print("""
+            Step #\(comm.stepNumber):
+            - Has ATC Response: \(comm.atcResponse != nil)
+            - Has Readback: \(comm.pilotReadback != nil)
+            - Readback text: \(comm.pilotReadback ?? "none")
+            """)
         }
         
-        print("Found \(filteredComms.count) steps for lesson (isControlled: \(isControlled))")
+        // Find the maximum Step# for this lesson
+        if let maxStep = communications
+            .filter({ $0.lessonID == lessonID })
+            .map({ $0.stepNumber })
+            .max() {
+            totalSteps = maxStep
+            print("Lesson \(lessonID) has \(maxStep) total steps")
+        }
+        
         return filteredComms
     }
     
     func loadExercise() {
         let communications = findCommunications()
-        
-        // Ensure totalSteps reflects the actual number of communications
-        totalSteps = communications.count
         
         if let firstStep = communications.first {
             loadStep(firstStep)
@@ -102,20 +109,42 @@ class CommunicationExerciseViewModel: ObservableObject {
     
     func moveToNextStep() {
         let communications = findCommunications()
-        if currentStep < totalSteps,
-           let nextStep = communications.first(where: { $0.stepNumber == currentStep + 1 }) {
-            currentStep += 1
+        if let nextStep = communications.first(where: { $0.stepNumber == currentStep + 1 }) {
+            print("Moving to step \(nextStep.stepNumber)")
             loadStep(nextStep)
+            
+            // Reset view states for new step
+            isRequestExpanded = true
+            isControllerResponseExpanded = false
+            isReadbackExpanded = false
+            showControllerResponse = false
+            readbackFeedback = nil
+            requestFeedback = nil
         }
     }
     
     private func loadStep(_ communication: ExerciseCommunication) {
+        // Reset states
+        selectedElements = []
+        selectedReadbackElements = []
+        readbackElements = []
+        correctReadbackOrder = []
+        showControllerResponse = false
+        isRequestExpanded = true
+        isControllerResponseExpanded = false
+        isReadbackExpanded = false
+        isReadbackCorrect = false
+        readbackFeedback = nil
+        requestFeedback = nil
+        
         // Update current step to match the communication's step number
         currentStep = communication.stepNumber
         
         // Set flags based on communication content
         hasATCResponse = communication.atcResponse != nil
         hasReadback = communication.pilotReadback != nil
+        
+        print("Step \(currentStep): hasATCResponse: \(hasATCResponse), hasReadback: \(hasReadback)")
         
         // Reset AirportManager with appropriate controlled status
         AirportManager.shared.resetForNewExercise(isControlled: isControlled)
@@ -127,14 +156,14 @@ class CommunicationExerciseViewModel: ObservableObject {
             isATCResponse: false
         )
         
-        // Store the correct order and load initial elements for the request
-        if let pilotRequest = communication.pilotRequest {
-            correctOrder = createElements(from: pilotRequest)
-            initialElements = correctOrder.shuffled()
-        }
-        
-        // Process ATC response with dynamic elements
-        if hasATCResponse {
+        // If there's no pilot request, automatically show ATC response
+        if communication.pilotRequest == nil && hasATCResponse {
+            print("No pilot request in this step, showing ATC response directly")
+            showControllerResponse = true
+            isRequestExpanded = false
+            isControllerResponseExpanded = true
+            
+            // Process ATC response
             controllerResponse = AirportManager.shared.processText(
                 communication.atcResponse ?? "",
                 for: nil,
@@ -142,29 +171,53 @@ class CommunicationExerciseViewModel: ObservableObject {
             )
             
             if hasReadback {
-                let processedReadback = AirportManager.shared.processText(
-                    communication.pilotReadback ?? "",
+                isReadbackExpanded = true
+                setupReadbackElements(from: communication)
+            }
+        } else if let pilotRequest = communication.pilotRequest {
+            // Normal flow with pilot request
+            correctOrder = createElements(from: pilotRequest)
+            initialElements = correctOrder.shuffled()
+            
+            // Process ATC response if present
+            if hasATCResponse {
+                controllerResponse = AirportManager.shared.processText(
+                    communication.atcResponse ?? "",
                     for: nil,
-                    isATCResponse: false
+                    isATCResponse: true
                 )
                 
-                // Create elements and store correct order
-                correctReadbackOrder = processedReadback.components(separatedBy: ", ")
-                    .map { text in
-                        CommunicationElement(text: text, type: determineElementType(text))
-                    }
-                
-                // Create shuffled copy for presentation
-                readbackElements = correctReadbackOrder.shuffled()
-                
-                print("Created readback elements in order: \(correctReadbackOrder.map { $0.processedText })")
-                print("Shuffled elements: \(readbackElements.map { $0.processedText })")
-                selectedReadbackElements = []
+                if hasReadback {
+                    setupReadbackElements(from: communication)
+                }
             }
         }
         
         // Generate summary items based on communication elements
         generateSummaryItems(from: communication)
+    }
+    
+    // Helper function to setup readback elements
+    private func setupReadbackElements(from communication: ExerciseCommunication) {
+        print("Setting up readback elements...")
+        let processedReadback = AirportManager.shared.processText(
+            communication.pilotReadback ?? "",
+            for: nil,
+            isATCResponse: false
+        )
+        print("Processed readback text: \(processedReadback)")
+        
+        // Create elements and store correct order
+        correctReadbackOrder = processedReadback.components(separatedBy: ", ")
+            .map { text in
+                CommunicationElement(text: text, type: determineElementType(text))
+            }
+        
+        // Create shuffled copy for presentation
+        readbackElements = correctReadbackOrder.shuffled()
+        
+        print("Created readback elements in order: \(correctReadbackOrder.map { $0.processedText })")
+        print("Shuffled elements for display: \(readbackElements.map { $0.processedText })")
     }
     
     private func generateSummaryItems(from communication: ExerciseCommunication) {
@@ -217,6 +270,8 @@ class CommunicationExerciseViewModel: ObservableObject {
     func validateRequest() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             showRequestFeedback = true
+            print("Validating request - isCorrect: \(isRequestCorrect)")
+            print("hasATCResponse: \(hasATCResponse), hasReadback: \(hasReadback)")
             
             if isRequestCorrect {
                 // Update summary when request is correct
@@ -233,13 +288,12 @@ class CommunicationExerciseViewModel: ObservableObject {
                     showControllerResponse = true
                     isRequestExpanded = false
                     isControllerResponseExpanded = true
+                    print("Showing controller response, readbackElements: \(readbackElements.count)")
                     
-                    // Update ATC Response in summary
-                    if let index = summaryItems.firstIndex(where: { $0.title == "ATC Response" }) {
-                        summaryItems[index] = ExerciseSummaryItem(
-                            title: "ATC Response",
-                            isCompleted: true
-                        )
+                    // Make sure readback is available when needed
+                    if hasReadback {
+                        isReadbackExpanded = true  // Try explicitly showing readback
+                        print("Readback should be visible - elements: \(readbackElements.map { $0.processedText })")
                     }
                 }
             } else {
@@ -254,7 +308,6 @@ class CommunicationExerciseViewModel: ObservableObject {
             print("Selected elements: \(selectedReadbackElements.map { $0.processedText })")
             print("Correct order: \(correctReadbackOrder.map { $0.processedText })")
             
-            // Compare against the correct order, not the shuffled elements
             let isCorrect = selectedReadbackElements.count == correctReadbackOrder.count &&
                 zip(selectedReadbackElements, correctReadbackOrder).allSatisfy { selected, correct in
                     let matches = selected.processedText == correct.processedText
@@ -264,15 +317,27 @@ class CommunicationExerciseViewModel: ObservableObject {
             
             if isCorrect {
                 print("✅ Readback correct")
-                isReadbackCorrect = true
-                isControllerResponseExpanded = false
-                isReadbackExpanded = false
                 
+                // Update summary item
                 if let index = summaryItems.firstIndex(where: { $0.title == "Pilot Readback" }) {
                     summaryItems[index] = ExerciseSummaryItem(
                         title: "Pilot Readback",
                         isCompleted: true
                     )
+                }
+                
+                // Check if this is the final step
+                if currentStep < totalSteps {
+                    // Move to next step after a short delay
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(1))
+                        moveToNextStep()
+                    }
+                } else {
+                    // Only set isReadbackCorrect to true on the final step
+                    isReadbackCorrect = true
+                    isControllerResponseExpanded = false
+                    isReadbackExpanded = false
                 }
             } else {
                 print("❌ Readback incorrect")
