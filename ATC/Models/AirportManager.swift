@@ -164,24 +164,11 @@ class AirportManager {
         ATCPhraseology.phonetics.randomElement()?.letter ?? "Alpha"
     }
     
-    func resetForNewExercise(isControlled: Bool = true, lessonID: String) {
-        print("🔄 Resetting for lesson: \(lessonID)")
-        
-        // Determine if this lesson should use a controlled airport
-        let useControlledAirport: Bool
-        switch lessonID {
-            case "VFR-TaxiOut-1":
-                useControlledAirport = false  // Lesson 1 uses uncontrolled airport
-            case "VFR-TaxiOut-2", "VFR-TaxiOut-3":
-                useControlledAirport = true   // Lessons 2 and 3 use controlled airports
-            default:
-                useControlledAirport = isControlled
-        }
-        
-        print("🛫 Using controlled airport: \(useControlledAirport) for lesson \(lessonID)")
+    func resetForNewExercise(isControlled: Bool) {
+        print("🔄 Resetting exercise (isControlled: \(isControlled))")
         
         currentLocation = nil
-        currentAirport = getRandomAirport(isControlled: useControlledAirport)
+        currentAirport = getRandomAirport(isControlled: isControlled)
         currentCallsign = ATCSettings.shared.callSign ?? getRandomCallsign()
         currentAtisCode = getRandomAtisCode()
         currentRunway = nil

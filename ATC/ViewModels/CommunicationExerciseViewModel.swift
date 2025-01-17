@@ -121,7 +121,7 @@ class CommunicationExerciseViewModel: ObservableObject {
         print("Loading step \(communication.stepNumber) for lesson \(lessonID)")
         
         // Reset AirportManager with appropriate controlled status and lesson ID
-        AirportManager.shared.resetForNewExercise(isControlled: isControlled, lessonID: lessonID)
+        AirportManager.shared.resetForNewExercise(isControlled: isControlled)
         
         // Reset state for new step
         selectedElements = []
