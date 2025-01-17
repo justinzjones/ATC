@@ -129,8 +129,15 @@ class AirportManager {
     }
     
     func getRandomAirport(isControlled: Bool = true) -> AirportInfo {
+        print("🔍 Getting random airport (isControlled: \(isControlled))")
         let filteredAirports = airports.filter { $0.isControlled == isControlled }
-        return filteredAirports.randomElement() ?? airports[0]  // Fallback to first airport if none found
+        if filteredAirports.isEmpty {
+            print("⚠️ No airports found for isControlled: \(isControlled)")
+            return airports[0]
+        }
+        let selected = filteredAirports.randomElement() ?? airports[0]
+        print("✅ Selected airport: \(selected.icao) (controlled: \(selected.isControlled))")
+        return selected
     }
     
     func getRandomCallsign() -> String {
@@ -157,11 +164,30 @@ class AirportManager {
         ATCPhraseology.phonetics.randomElement()?.letter ?? "Alpha"
     }
     
-    func resetForNewExercise(isControlled: Bool = true) {
+    func resetForNewExercise(isControlled: Bool = true, lessonID: String) {
+        print("🔄 Resetting for lesson: \(lessonID)")
+        
+        // Determine if this lesson should use a controlled airport
+        let useControlledAirport: Bool
+        switch lessonID {
+            case "VFR-TaxiOut-1":
+                useControlledAirport = false  // Lesson 1 uses uncontrolled airport
+            case "VFR-TaxiOut-2", "VFR-TaxiOut-3":
+                useControlledAirport = true   // Lessons 2 and 3 use controlled airports
+            default:
+                useControlledAirport = isControlled
+        }
+        
+        print("🛫 Using controlled airport: \(useControlledAirport) for lesson \(lessonID)")
+        
         currentLocation = nil
-        currentAirport = getRandomAirport(isControlled: isControlled)
+        currentAirport = getRandomAirport(isControlled: useControlledAirport)
         currentCallsign = ATCSettings.shared.callSign ?? getRandomCallsign()
         currentAtisCode = getRandomAtisCode()
+        currentRunway = nil
+        currentTaxiway = nil
+        
+        print("📍 Set current airport to: \(currentAirport?.icao ?? "none") (controlled: \(currentAirport?.isControlled ?? false))")
     }
     
     func getRandomRunway() -> String {

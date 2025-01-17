@@ -5,7 +5,7 @@ struct CommunicationExerciseView: View {
     let lessonTitle: String
     let objective: String
     let isControlled: Bool
-    let lessonID: String
+    let currentLessonID: String
     @StateObject private var viewModel: CommunicationExerciseViewModel
     @Namespace private var animation  // For matched geometry transitions
     
@@ -13,11 +13,12 @@ struct CommunicationExerciseView: View {
         self.lessonTitle = lessonTitle
         self.objective = objective
         self.isControlled = isControlled
-        self.lessonID = lessonID
+        self.currentLessonID = lessonID
         self._viewModel = StateObject(wrappedValue: CommunicationExerciseViewModel(
-            isControlled: isControlled,
-            lessonID: lessonID
-        ))
+        isControlled: isControlled,
+        lessonID: lessonID
+
+    ))
     }
     
     var body: some View {
@@ -44,7 +45,7 @@ struct CommunicationExerciseView: View {
                         .id("situation-\(viewModel.currentStep)")
                     
                     // Only show Request Section if there's a pilot request
-                    if viewModel.initialElements.count > 0 {
+                    if viewModel.hasRequest {
                         RequestSection(
                             initialElements: $viewModel.initialElements,
                             selectedElements: $viewModel.selectedElements,
@@ -58,8 +59,8 @@ struct CommunicationExerciseView: View {
                         .id("request-\(viewModel.currentStep)")
                     }
                     
-                    // Show ATC Response if available
-                    if viewModel.hasATCResponse && (viewModel.showControllerResponse || viewModel.initialElements.isEmpty) {
+                    // Show ATC Response section if it exists and either there's no request or showControllerResponse is true
+                    if viewModel.hasATCResponse && (!viewModel.hasRequest || viewModel.showControllerResponse) {
                         ATCResponseSection(
                             response: viewModel.controllerResponse ?? "",
                             onSpeak: viewModel.speakATCResponse
@@ -97,6 +98,6 @@ struct CommunicationExerciseView: View {
 
 #Preview {
     NavigationStack {
-        CommunicationExerciseView(lessonTitle: "Basic Taxi Request", objective: "Learn how to handle taxi requests", isControlled: true, lessonID: "VFR-TaxiOut-2")
+        CommunicationExerciseView(lessonTitle: "Basic Taxi Request", objective: "Learn how to handle taxi requests", isControlled: true, lessonID: "1")
     }
 } 
