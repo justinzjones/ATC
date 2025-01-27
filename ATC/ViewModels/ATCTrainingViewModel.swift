@@ -1,93 +1,90 @@
 import Foundation
+import SwiftUI
 
 @MainActor
 class ATCTrainingViewModel: ObservableObject {
-    @Published var sections: [ATCSection] = []
+    @Published private(set) var sections: [ATCSection] = []
+    @Published private(set) var subsections: [SubsectionContent] = []
+    @Published private(set) var subsectionLessons: [String: [LessonContent]] = [:]
+    @Published private(set) var isLoadingLessons = false
+    
     private let dataLoader = DataLoader()
     
     init() {
-        loadContent()
+        print("ATCTrainingViewModel initialized")
+        loadInitialContent()
     }
     
-    private func loadContent() {
-        guard let content = dataLoader.loadContent() else { 
-            print("Failed to load content")
-            return 
-        }
-        
-        // Process content and create sections
-        var sectionsDict: [String: ATCSection] = [:]
-        
-        // Create subsections from content
-        for subsectionContent in content.subsections {
-            guard let subsectionTitle = subsectionContent.subsection else { continue }
+    private func loadInitialContent() {
+        print("Loading initial content...")
+        if let content = dataLoader.load() {
+            print("Content loaded: \(content.appContent.count) sections")
             
-            let subsection = ATCSubsection(
-                title: subsectionTitle,
-                description: subsectionContent.description,
-                lessons: []
-            )
-            
-            // Convert section name to full title
-            let sectionKey = convertSectionName(subsectionContent.section)
-            if sectionsDict[sectionKey] == nil {
-                sectionsDict[sectionKey] = ATCSection(
-                    title: sectionKey,
-                    description: "",
-                    subsections: []
-                )
-            }
-            
-            sectionsDict[sectionKey]?.subsections.append(subsection)
-        }
-        
-        // Add lessons to appropriate subsections
-        for lessonContent in content.lessons {
-            let lesson = createLesson(from: lessonContent)
-            let sectionKey = convertSectionName(lessonContent.section)
-            
-            if let sectionIndex = sectionsDict[sectionKey]?.subsections.firstIndex(
-                where: { $0.title == lessonContent.subsection }
-            ) {
-                sectionsDict[sectionKey]?.subsections[sectionIndex].lessons.append(lesson)
-            }
-        }
-        
-        // Update section descriptions from app content
-        for appContent in content.appContent where appContent.type == "Section" {
-            if let section = sectionsDict[appContent.title] {
-                sectionsDict[appContent.title] = ATCSection(
+            // Convert AppContent to ATCSection
+            sections = content.appContent.map { appContent in
+                print("\nProcessing section: \(appContent.title)")
+                
+                // Map section titles to their JSON counterparts
+                let sectionKey = appContent.title.replacingOccurrences(of: " Training", with: "")
+                
+                // Debug subsection filtering
+                let matchingSubsections = content.subsections.filter { $0.section == sectionKey }
+                print("Found \(matchingSubsections.count) subsections for \(appContent.title) (key: \(sectionKey))")
+                matchingSubsections.forEach { subsection in
+                    print("- Subsection: \(subsection.subsection ?? "nil"), Section: \(subsection.section ?? "nil")")
+                }
+                
+                let sectionSubsections = matchingSubsections.map { subsection in
+                    print("Creating subsection: \(subsection.subsection ?? "")")
+                    return ATCSubsection(
+                        title: subsection.subsection ?? "",
+                        description: subsection.description ?? "",
+                        lessons: []  // We'll load these lazily
+                    )
+                }
+                
+                return ATCSection(
                     title: appContent.title,
                     description: appContent.description,
-                    subsections: section.subsections
+                    subsections: sectionSubsections
                 )
             }
+            
+            subsections = content.subsections
+            print("\nFinished loading:")
+            sections.forEach { section in
+                print("Section: \(section.title), Subsections: \(section.subsections.count)")
+                section.subsections.forEach { subsection in
+                    print("- \(subsection.title)")
+                }
+            }
+        } else {
+            print("Failed to load content")
+        }
+    }
+    
+    func loadLessons(for subsectionID: String) async {
+        print("Loading lessons for subsection: \(subsectionID)")
+        // Return if already loaded
+        guard subsectionLessons[subsectionID] == nil else {
+            print("Lessons already loaded for: \(subsectionID)")
+            return
         }
         
-        sections = Array(sectionsDict.values).sorted { first, second in
-            first.title == "VFR Training" && second.title == "IFR Training"
+        await MainActor.run { isLoadingLessons = true }
+        
+        if let lessons = dataLoader.loadLessons(for: subsectionID) {
+            print("Loaded \(lessons.count) lessons for subsection: \(subsectionID)")
+            await MainActor.run {
+                subsectionLessons[subsectionID] = lessons
+                isLoadingLessons = false
+            }
+        } else {
+            print("Failed to load lessons for: \(subsectionID)")
         }
     }
     
-    private func convertSectionName(_ name: String) -> String {
-        switch name {
-        case "VFR":
-            return "VFR Training"
-        case "IFR":
-            return "IFR Training"
-        default:
-            return name
-        }
-    }
-    
-    private func createLesson(from content: LessonContent) -> ATCLesson {
-        let lessonID = "\(content.section)-\(content.subsection.replacingOccurrences(of: " ", with: ""))-\(content.lessonNumber)"
-        print("Creating lesson with ID: \(lessonID)")
-        return ATCLesson(
-            title: content.title,
-            objective: content.objective,
-            isControlled: content.controlled.lowercased() == "yes",
-            lessonID: lessonID
-        )
+    func getLessons(for subsectionID: String) -> [LessonContent] {
+        return subsectionLessons[subsectionID] ?? []
     }
 } 

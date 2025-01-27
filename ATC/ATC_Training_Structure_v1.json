@@ -141,8 +141,8 @@
             "Lesson ID": "VFR-TaxiOut-1",
             "Step#": 1,
             "Type": "Request",
-            "Situation Text": "You are at {{airport_name}} parked at {{airport location}}. ",
-            "Pilot request": "{{airport_name}} \"traffic\", {{call_sign}}, {{airport_location}}, \"taxi to\" {{runway number}}, {{airport_name}}",
+            "Situation Text": "You are at {{airport_name}} parked at {{airport location}}.",
+            "Pilot request": "{{airport_name}} traffic, {{call_sign}}, {{airport_location}}, taxi to {{runway number}}, {{airport_name}}",
             "ATC Response": null,
             "Pilot readback": null
         },
@@ -170,8 +170,8 @@
             "Type": "Request",
             "Situation Text": "You are holding short of Runway {{runway_number}}",
             "Pilot request": null,
-            "ATC Response": " {{call_sign}}, \"cross Runway\" {{runway_number}} \"at\" {{taxi_way}} \"and taxi to\" {{runway_number}} via {{taxi_way}}.",
-            "Pilot readback": "cross Runway {{runway_number}} \"at\" {{taxi_way}} \"and taxi to\" {{runway_number}} via {{taxi_way}}, {{call_sign}}"
+            "ATC Response": " {{call_sign}}, cross Runway {{runway_number}} at {{taxi_way}}, and taxi to {{runway_number}} via {{taxi_way}}.",
+            "Pilot readback": "cross Runway {{runway_number}} at {{taxi_way}}, and taxi to {{runway_number}} via {{taxi_way}}, {{call_sign}}"
         }
     ],
     "Special Instructions": [

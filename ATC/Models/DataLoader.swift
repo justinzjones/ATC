@@ -1,33 +1,46 @@
 import Foundation
 
 class DataLoader {
-    func loadContent() -> TrainingContent? {
-        guard let url = Bundle.main.url(forResource: "ATC_Training_Structure_v1", withExtension: "json"),
-              let data = try? Data(contentsOf: url) else {
-            print("Failed to find or read JSON file")
+    func load() -> TrainingContent? {
+        print("DataLoader: Attempting to load ATC_Training_Structure_v1.json")
+        
+        guard let url = Bundle.main.url(forResource: "ATC_Training_Structure_v1", withExtension: "json") else {
+            print("DataLoader: Could not find ATC_Training_Structure_v1.json in bundle")
             return nil
         }
         
         do {
-            let decoder = JSONDecoder()
-            let content = try decoder.decode(TrainingContent.self, from: data)
-            print("Successfully loaded content with \(content.appContent.count) app content items")
-            print("Loaded \(content.subsections.count) subsections")
-            print("Loaded \(content.lessons.count) lessons")
+            let data = try Data(contentsOf: url)
+            print("DataLoader: Successfully read \(data.count) bytes")
+            
+            let content = try JSONDecoder().decode(TrainingContent.self, from: data)
+            print("DataLoader: Successfully decoded content")
             return content
+            
         } catch {
-            print("Error decoding content: \(error)")
+            print("DataLoader: Error loading/decoding content: \(error)")
             return nil
         }
     }
     
+    func loadLessons(for subsectionID: String) -> [LessonContent]? {
+        print("DataLoader: Loading lessons for subsection: \(subsectionID)")
+        if let content = load() {
+            let lessons = content.lessons.filter { $0.subsection == subsectionID }
+            print("DataLoader: Found \(lessons.count) lessons")
+            return lessons.sorted { $0.lessonNumber < $1.lessonNumber }
+        }
+        print("DataLoader: Failed to load lessons")
+        return nil
+    }
+    
     func loadCommunications() -> [ExerciseCommunication]? {
-        guard let content = loadContent() else { return nil }
+        guard let content = load() else { return nil }
         return content.communications
     }
     
     func getIntroduction() -> AppContent? {
-        guard let content = loadContent() else { return nil }
+        guard let content = load() else { return nil }
         return content.appContent.first { $0.type == "Introduction" }
     }
 }
